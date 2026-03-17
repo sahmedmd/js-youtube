@@ -1,0 +1,72 @@
+/**
+ * scrapeNBNFeeds() – Extracts all podcast RSS feed URLs from the New Books Network categories page,
+ * displays them in the console, and automatically opens the first feed in a new browser tab.
+ *
+ * How to use:
+ * 1. Go to https://newbooksnetwork.com/subscribe (or any page with the same table structure).
+ * 2. Open Developer Tools (F12) and switch to the Console tab.
+ * 3. Paste this entire script and press Enter.
+ * 4. The console will show a table of all feeds and a JSON list.
+ * 5. The first feed will open in a new tab automatically (if pop‑ups are allowed).
+ *
+ * Note: If the new tab doesn’t open, check your browser’s pop‑up blocker – you may need to allow pop‑ups for this site.
+ */
+(function scrapeNBNFeeds() {
+    // ----------------------------------------------------------------------
+    // Step 1: Select all the rows that contain feed information.
+    // The page uses <tr class="text-gray-300"> for each podcast series.
+    // Category header rows have different classes and are ignored.
+    // ----------------------------------------------------------------------
+    const rows = document.querySelectorAll('tbody tr.text-gray-300');
+    const feedList = []; // This array will hold the extracted feeds
+
+    // ----------------------------------------------------------------------
+    // Step 2: Loop through each selected row and extract the channel name
+    // and the RSS feed URL.
+    // ----------------------------------------------------------------------
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Each feed row has at least two cells: 
+        // cell 0 = channel name (inside an <a> tag)
+        // cell 1 = RSS icon/link (usually a Megaphone feed)
+        if (cells.length >= 2) {
+            // Get the channel name from the first cell.
+            // .innerText gives the visible text (e.g., "Architecture").
+            const channelName = cells[0].innerText.trim();
+
+            // Look for an <a> tag inside the second cell – that’s the RSS feed link.
+            // Optional chaining (?.) prevents errors if the link is missing.
+            const rssLink = cells[1].querySelector('a')?.href || null;
+
+            // Only add to our list if both name and link exist.
+            if (channelName && rssLink) {
+                feedList.push({
+                    channel: channelName,
+                    rss_url: rssLink
+                });
+            }
+        }
+    });
+
+    // ----------------------------------------------------------------------
+    // Step 3: Output the results in a clear, readable format.
+    // ----------------------------------------------------------------------
+    console.log("%c Extracted " + feedList.length + " RSS Feeds:", "color: #007bff; font-weight: bold; font-size: 14px;");
+    console.table(feedList);                 // Nice table view
+    console.log("JSON Output:", JSON.stringify(feedList, null, 2)); // JSON for copying
+
+    // ----------------------------------------------------------------------
+    // Step 4: Automatically open the first feed in a new browser tab.
+    // (You can change feedList[0] to any other index if you prefer a different feed.)
+    // ----------------------------------------------------------------------
+    if (feedList.length > 0) {
+        const firstFeedUrl = feedList[0].rss_url;
+        window.open(firstFeedUrl, '_blank');
+        console.log(`Opening: ${firstFeedUrl}`);
+    } else {
+        console.log("No feeds found to open.");
+    }
+
+    // Return the array so you can assign it to a variable if needed.
+    return feedList;
+})();
