@@ -1,0 +1,109 @@
+/**
+ * scrapeAndDownloadNBNFeeds() – Extracts podcast RSS feed URLs from the New Books Network categories page,
+ * displays them in the console, and downloads the content of selected feeds as text files.
+ *
+ * How to use:
+ * 1. Go to https://newbooksnetwork.com/subscribe.
+ * 2. Open Developer Tools (F12) → Console.
+ * 3. Paste this script and press Enter.
+ * 4. The console will show a table of all feeds.
+ * 5. For each index in the `FEEDS_TO_DOWNLOAD` array, the script will fetch the feed's XML
+ *    and trigger a download (saved as "feed_X_ChannelName.xml").
+ *
+ * To change which feeds are downloaded, edit the `FEEDS_TO_DOWNLOAD` array below.
+ */
+(function scrapeAndDownloadNBNFeeds() {
+    // ----------------------------------------------------------------------
+    // HARDCODED LIST – Edit this array to choose which feeds to download.
+    // Indices are zero‑based, so feed #1 is index 1, feed #3 is index 3, etc.
+    // ----------------------------------------------------------------------
+    const FEEDS_TO_DOWNLOAD = [1, 3, 7]; // <-- Change this list as needed
+
+    // Delay between downloads (milliseconds) – helps avoid browser throttling.
+    const DOWNLOAD_DELAY = 500;
+
+    // ----------------------------------------------------------------------
+    // Step 1: Select all the rows that contain feed information.
+    // ----------------------------------------------------------------------
+    const rows = document.querySelectorAll('tbody tr.text-gray-300');
+    const feedList = []; // This array will hold the extracted feeds
+
+    // ----------------------------------------------------------------------
+    // Step 2: Loop through each selected row and extract the channel name
+    // and the RSS feed URL.
+    // ----------------------------------------------------------------------
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 2) {
+            const channelName = cells[0].innerText.trim();
+            const rssLink = cells[1].querySelector('a')?.href || null;
+            if (channelName && rssLink) {
+                feedList.push({
+                    channel: channelName,
+                    rss_url: rssLink
+                });
+            }
+        }
+    });
+
+    // ----------------------------------------------------------------------
+    // Step 3: Output the results in a clear, readable format.
+    // ----------------------------------------------------------------------
+    console.log("%c Extracted " + feedList.length + " RSS Feeds:", "color: #007bff; font-weight: bold; font-size: 14px;");
+    console.table(feedList);
+    console.log("JSON Output:", JSON.stringify(feedList, null, 2));
+
+    // ----------------------------------------------------------------------
+    // Step 4: Download the feeds specified in the hardcoded list.
+    // ----------------------------------------------------------------------
+    if (feedList.length === 0) {
+        console.log("No feeds found to download.");
+        return feedList;
+    }
+
+    // Helper function to trigger a file download from text content.
+    function downloadTextFile(content, filename) {
+        const blob = new Blob([content], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // Loop through the selected indices and download each feed with a delay.
+    FEEDS_TO_DOWNLOAD.forEach((index, i) => {
+        setTimeout(async () => {
+            if (index >= 0 && index < feedList.length) {
+                const feed = feedList[index];
+                console.log(`Downloading feed #${index}: ${feed.channel} (${feed.rss_url})`);
+
+                try {
+                    // Fetch the RSS content.
+                    const response = await fetch(feed.rss_url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}`);
+                    }
+                    const text = await response.text();
+
+                    // Create a safe filename: replace non‑alphanumeric characters.
+                    const safeName = feed.channel.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    const filename = `feed_${index}_${safeName}.xml`;
+
+                    // Trigger the download.
+                    downloadTextFile(text, filename);
+                    console.log(`   Saved as: ${filename}`);
+                } catch (err) {
+                    console.error(`   Failed to download feed #${index}:`, err.message);
+                }
+            } else {
+                console.log(`Skipping invalid feed index: ${index} (must be 0‑${feedList.length-1})`);
+            }
+        }, i * DOWNLOAD_DELAY); // Stagger downloads
+    });
+
+    return feedList;
+})();
